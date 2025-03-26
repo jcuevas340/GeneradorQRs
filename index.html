@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Almacén con QR</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; }
+        
+        #qr-container, #scanner {
+            margin: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .qr-item { margin: 10px; }
+        
+        video { width: 100%; max-width: 400px; }
+        
+        #lista-productos {
+            text-align: left;
+            display: inline-block;
+            margin-top: 20px;
+            max-width: 90%;
+        }
+        
+        input, button {
+            width: 90%;
+            max-width: 300px;
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                font-size: 14px;
+            }
+            input, button {
+                font-size: 14px;
+                padding: 8px;
+            }
+            video {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Control de Almacén con QR</h1>
+    
+    <h2>Generar QR para un Producto</h2>
+    <input type="text" id="numParte" placeholder="Número de Parte">
+    <input type="number" id="cantidad" placeholder="Cantidad" min="1" value="1">
+    <button onclick="generarQR()">Generar QR</button>
+    <button onclick="descargarQRCodes()">Descargar QRs</button>
+    <div id="qr-container"></div>
+
+    <h2>Escanear QR</h2>
+    <div id="scanner">
+        <video id="video" autoplay></video>
+        <canvas id="canvas" hidden></canvas>
+    </div>
+    <button onclick="iniciarEscaneo()">Iniciar Escaneo</button>
+    
+    <h2>Lista de Productos para Traslado</h2>
+    <ul id="lista-productos"></ul>
+
+    <script>
+        function generarQR() {
+            const numParte = document.getElementById('numParte').value;
+            const cantidad = parseInt(document.getElementById('cantidad').value);
+            if (!numParte || cantidad < 1) return alert('Ingrese un número de parte y cantidad válida');
+            
+            const qrContainer = document.getElementById('qr-container');
+            qrContainer.innerHTML = '';
+            
+            for (let i = 0; i < cantidad; i++) {
+                const idUnico = Date.now() + i;
+                const qrData = JSON.stringify({ numParte, id: idUnico });
+                
+                const qrDiv = document.createElement('div');
+                qrDiv.classList.add('qr-item');
+                new QRCode(qrDiv, {
+                    text: qrData,
+                    width: 128,
+                    height: 128
+                });
+                qrContainer.appendChild(qrDiv);
+            }
+        }
+
+        function descargarQRCodes() {
+            const qrItems = document.querySelectorAll('.qr-item canvas');
+            qrItems.forEach((canvas, index) => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `qr_code_${index + 1}.png`;
+                link.click();
+            });
+        }
+        
+        function iniciarEscaneo() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
+                video.srcObject = stream;
+                video.play();
+                
+                setInterval(() => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, canvas.width, canvas.height);
+                    
+                    if (code) {
+                        agregarALista(code.data);
+                    }
+                }, 1000);
+            });
+        }
+        
+        function agregarALista(data) {
+            const producto = JSON.parse(data);
+            const lista = document.getElementById('lista-productos');
+            
+            const item = document.createElement('li');
+            item.textContent = `Parte: ${producto.numParte}, ID: ${producto.id}`;
+            lista.appendChild(item);
+        }
+    </script>
+</body>
+</html>
