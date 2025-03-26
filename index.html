@@ -69,6 +69,8 @@
     <ul id="lista-productos"></ul>
 
     <script>
+        let productosEscaneados = new Set();
+        
         function generarQR() {
             const numParte = document.getElementById('numParte').value;
             const cantidad = parseInt(document.getElementById('cantidad').value);
@@ -127,6 +129,9 @@
         
         function agregarALista(data) {
             const producto = JSON.parse(data);
+            if (productosEscaneados.has(producto.id)) return; // Evitar duplicados
+            
+            productosEscaneados.add(producto.id);
             const lista = document.getElementById('lista-productos');
             
             const item = document.createElement('li');
